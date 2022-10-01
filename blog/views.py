@@ -4,51 +4,66 @@ from .models import Post
 from django.views.generic import ListView
 from .forms import EmailPostForm, CommentForm
 from django.core.mail import send_mail
+from taggit.models  import Tag
+from django.db.models import Count
 
 # Create your views here.
-# def post_list(request):
-#     object_list = Post.published.all()
-#     paginator = Paginator(object_list, 3) 
-#     page = request.GET.get('page')
+def post_list(request, tag_slug=None):
+    object_list = Post.published.all()
 
-#     try:
-#         posts = paginator.page(page)
-#     except PageNotAnInteger:
-#         posts = paginator.page(1)
-#     except EmptyPage:
-#         posts = paginator.page(paginator.num_pages)
+    tag =None
+    if tag_slug:
+        tag = get_object_or_404(Tag, slug=tag_slug)
+        object_list = object_list.filter(tags__in=[tag])
+    paginator = Paginator(object_list, 3) 
+    page = request.GET.get('page')
 
-#     return render(request,  'blog/post/list.html', {'page':page, 'posts':posts})
+    try:
+        posts = paginator.page(page)
+    except PageNotAnInteger:
+        posts = paginator.page(1)
+    except EmptyPage:
+        posts = paginator.page(paginator.num_pages)
 
-def post_detail(request, year, month, day, post):
-    post = get_object_or_404(Post, slug=post, 
-                             status='published',
-                              publish__year=year,
-                                publish__month=month,
-                                    publish__day=day)
+    return render(request,  'blog/post/list.html', {'page':page, 'posts':posts, 'tag':tag})
+
+# def post_detail(request, year, month, day, post):
+#     post = get_object_or_404(Post, slug=post, 
+#                              status='published',
+#                               publish__year=year,
+#                                 publish__month=month,
+#                                     publish__day=day)
 
 
-    comments = post.comments.filter(active=True)
-    new_comment = None
-    if request.method == 'POST':
-        comment_form = CommentForm(data = request.POST)
-        if comment_form.is_valid():
-            # Create Comment object but don't save to database yet
-            new_comment = comment_form.save(commit=False)
-            new_comment.post  = post
+#     comments = post.comments.filter(active=True)
+#     new_comment = None
+#     if request.method == 'POST':
+#         comment_form = CommentForm(data = request.POST)
+#         if comment_form.is_valid():
+#             # Create Comment object but don't save to database yet
+#             new_comment = comment_form.save(commit=False)
+#             new_comment.post  = post
 
-            # Save the comment to the database
-            new_comment.save()
-    comment_form = CommentForm()
-    return render(request, 'blog/post/detail.html', {'post': post, 'comments': comments, 'comment_form': comment_form})
+#             # Save the comment to the database
+#             new_comment.save()
+#     else:
+#         comment_form = CommentForm()
+
+#     post_tags_ids = post.tags.values_list('id', flat=True)
+#     print(post_tags_ids)
+#     similar_posts = Post.published.filter(tags__in=post_tags_ids).exclude(id=post.id)
+    # print(similar_posts)
+    # similar_posts = similar_posts.annotate(same_tags=Count('tags')).order_by('-same_tags', '-publish')[:4]
+
+    # return render(request, 'blog/post/detail.html', {'post': post, 'comments': comments, 'comment_form': comment_form, 'new_comment': new_comment})
 
 # this class based view is analogous the function based view above
-class PostListView(ListView):
+# class PostListView(ListView):
     # queryset = Post.objects.all() # this can also be done by declaring model = Post. 
-    model = Post
-    context_object_name = 'posts' # default is object_list
-    paginate_by = 3
-    template_name = 'blog/post/list.html'
+    # model = Post
+    # context_object_name = 'posts' # default is object_list
+    # paginate_by = 3
+    # template_name = 'blog/post/list.html'
 
 
 def post_share(request, post_id):
@@ -73,3 +88,24 @@ def post_share(request, post_id):
     return render(request, 'blog/post/share.html', {'post':post, 'form': form, 'sent':sent})
 
 
+def post_detail(request, year, month, day, post):
+    """Details View (Function based views)"""
+    post = get_object_or_404(Post, slug=post, status = "published", publish__year=year,
+    publish__month = month, publish__day=day)
+    comments = post.comments.filter(active = True)
+    new_comment = None
+    comment_form = CommentForm(data = request.POST)
+    if request.method == "POST":
+        comment_form = CommentForm(data = request.POST)
+        if comment_form.is_valid():
+            new_comment = comment_form.save(commit=False)
+            new_comment.post = post
+            new_comment.save()
+    else:
+        comment_form = CommentForm()
+    post_tag_ids = post.tags.values_list("id", flat = True)
+    similar_posts = Post.published.filter(tags__in=post_tag_ids).exclude(id=post.id)
+    similar_posts = similar_posts.annotate(same_tags = Count("tags")).order_by("-same_tags",
+     "-publish")[:4]
+    return render(request, "blog/post/detail.html",{"post":post, "comments":comments,
+     "new_comment": new_comment,"comment_form":comment_form, "similar_posts":similar_posts})

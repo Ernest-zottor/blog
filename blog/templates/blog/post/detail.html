@@ -11,11 +11,13 @@ Published {{ post.publish }} by {{ post.author }}
     Share this post
     </a>
 </p>
+
 {% with comments.count as total_comments %}
 <h2>
 {{ total_comments }} comment{{ total_comments|pluralize }}
 </h2>
 {% endwith %}
+
 {% for comment in comments %}
 <div class="comment">
 <p class="info">
