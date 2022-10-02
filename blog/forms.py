@@ -16,3 +16,7 @@ class CommentForm(forms.ModelForm):
     class Meta:
         model = Comment
         fields = ('name','email', 'body') # This specifies what fields on the model that we want to use "exclude filed will exclude some fileds"
+
+
+class SearchForm(forms.Form):
+    query = forms.CharField()
